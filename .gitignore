@@ -1,0 +1,14 @@
+# Node modules
+node_modules/
+
+# Next.js build folder
+.next/
+
+# Environment files
+.env.local
+.env
+.env.development
+.env.production
+
+# Mac / other OS files
+.DS_Store
