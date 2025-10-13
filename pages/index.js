@@ -1,20 +1,8 @@
+// pages/index.js
 import { useSession, signIn, signOut } from "next-auth/react";
-import { useState } from "react";
-import { useRouter } from "next/router";
 
 export default function Home() {
   const { data: session } = useSession();
-  const [apiKey, setApiKey] = useState("");
-  const router = useRouter();
-
-  const handleContinue = () => {
-    if (!apiKey) {
-      alert("Please enter your OpenAI API key");
-      return;
-    }
-    localStorage.setItem("OPENAI_API_KEY", apiKey);
-    router.push("/dashboard");
-  };
 
   if (session) {
     return (
@@ -25,22 +13,15 @@ export default function Home() {
           alt="profile"
           className="rounded-full w-20 h-20 mb-4"
         />
-        <input
-          type="password"
-          placeholder="Enter your OpenAI API Key"
-          className="border p-2 rounded w-80 mb-4"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-        />
         <button
-          onClick={handleContinue}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+          onClick={() => (window.location.href = "/dashboard")}
+          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition mb-4"
         >
-          Continue
+          Go to Dashboard
         </button>
         <button
           onClick={() => signOut()}
-          className="text-gray-500 mt-3 underline"
+          className="text-gray-500 underline"
         >
           Sign Out
         </button>
