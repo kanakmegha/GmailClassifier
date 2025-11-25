@@ -3,10 +3,10 @@ import { useSession } from "next-auth/react";
 import { fetchEmails } from "../utils/gmail";
 
 const categoryConfig = {
-  work: { color: "blue", icon: "💼" },
-  personal: { color: "green", icon: "👤" },
-  promotions: { color: "yellow", icon: "🏷️" },
-  updates: { color: "purple", icon: "📢" },
+  technical_issue: { color: "red", icon: "🐞" },
+  billing_question: { color: "yellow", icon: "💰" },
+  feature_request: { color: "blue", icon: "✨" },
+  general_inquiry: { color: "green", icon: "📩" },
 };
 
 export default function Dashboard() {
@@ -22,25 +22,24 @@ export default function Dashboard() {
 
     const loadEmails = async () => {
       setLoading(true);
-      setProgress(0);
+      setProgress(10);
 
+      // FETCH EMAILS
       const fetched = await fetchEmails(session.accessToken, 10);
       setEmails(fetched);
-      setProgress(50);
+      setProgress(40);
 
-      // Mock classification
-      const total = fetched.length;
-      const categoriesResult = { work: [], personal: [], promotions: [], updates: [] };
+      // SEND EMAILS TO BACKEND FOR AI CLASSIFICATION
+      const aiRes = await fetch("/api/auth/openai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emails: fetched.map((e) => e.snippet ?? e.subject ?? "")
+        })
+      });
 
-      for (let i = 0; i < total; i++) {
-        const mockCats = ["work", "personal", "promotions", "updates"];
-        const cat = mockCats[Math.floor(Math.random() * mockCats.length)];
-        categoriesResult[cat].push(fetched[i]);
-        setProgress(50 + Math.round(((i + 1) / total) * 50));
-        await new Promise((res) => setTimeout(res, 100));
-      }
-
-      setCategories(categoriesResult);
+      const data = await aiRes.json();
+      setCategories(data.categories);
       setProgress(100);
       setLoading(false);
     };
@@ -74,44 +73,41 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {Object.entries(categories).map(([cat, list]) => {
-          const { color, icon } = categoryConfig[cat];
+          const { color, icon } = categoryConfig[cat] || {};
           const isOpen = openCategory === cat;
 
           return (
             <div
               key={cat}
-              className={`bg-white rounded-2xl shadow-xl overflow-hidden cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl`}
+              className="bg-white rounded-2xl shadow-xl overflow-hidden cursor-pointer transition-all hover:scale-105 hover:shadow-2xl"
             >
-              {/* Card Header */}
               <div
                 className={`flex items-center justify-between p-4 border-b-2 border-${color}-500`}
                 onClick={() => setOpenCategory(isOpen ? null : cat)}
               >
                 <div className="flex items-center space-x-2">
-                  <span className={`text-xl`}>{icon}</span>
-                  <h2 className={`font-semibold text-lg capitalize`}>{cat}</h2>
+                  <span className="text-xl">{icon}</span>
+                  <h2 className="font-semibold text-lg capitalize">
+                    {cat.replace(/_/g, " ")}
+                  </h2>
                 </div>
-                <span
-                  className={`bg-${color}-500 text-white text-sm font-medium px-2 py-1 rounded-full`}
-                >
+                <span className={`bg-${color}-500 text-white text-sm px-2 py-1 rounded-full`}>
                   {list.length}
                 </span>
               </div>
 
-              {/* Collapsible Email List */}
               <div
                 className={`transition-all duration-500 overflow-hidden ${
                   isOpen ? "max-h-96" : "max-h-0"
                 }`}
               >
                 <ul className="p-4 space-y-2">
-                  {list.map((email) => (
-                    <li
-                      key={email.id}
-                      className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                      <strong className="text-gray-800">{email.subject}</strong>
-                      <p className="text-sm text-gray-500">{email.snippet}</p>
+                  {list.map((emailObj, i) => (
+                    <li key={i} className="p-2 rounded-lg hover:bg-gray-100">
+                      <strong className="text-gray-800">{emailObj.email}</strong>
+                      <p className="text-sm text-gray-500 italic mt-1">
+                        AI Reply: {emailObj.response}
+                      </p>
                     </li>
                   ))}
                 </ul>
