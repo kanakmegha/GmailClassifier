@@ -2,13 +2,13 @@
   "name": "gmailclassifier",
   "version": "1.0.0",
   "private": true,
- "scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start"
-}
-,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "next": "13.5.2",
     "next-auth": "^4.24.1",
     "openai": "^4.29.0",
