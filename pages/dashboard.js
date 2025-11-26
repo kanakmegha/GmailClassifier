@@ -30,7 +30,10 @@ export default function Dashboard() {
       const response = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emails }),
+      
+          body: JSON.stringify({ emails: ["First email text", "Second email text"] })
+      
+        ,
       });
 
       const data = await response.json();
