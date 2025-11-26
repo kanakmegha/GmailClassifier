@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@google/genai": "^1.0.0",
     "@google/generative-ai": "^0.24.1",
     "next": "13.5.2",
     "next-auth": "^4.24.1",
