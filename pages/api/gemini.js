@@ -1,18 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const { emails } = req.body;
-
-  if (!emails || !Array.isArray(emails) || emails.length === 0) {
-    return res.status(400).json({ error: "No emails provided" });
-  }
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const categories = {
     technical_issue: [],
@@ -22,45 +14,33 @@ export default async function handler(req, res) {
   };
 
   try {
-    for (const email of emails) {
+    for (const email of req.body.emails) {
       const prompt = `
-Classify the email into one category:
-Technical Issue, Billing Question, Feature Request, General Inquiry.
+      Classify and reply to this email:
+      Subject: ${email.subject}
+      Content: ${email.snippet}
 
-Then generate a helpful reply.
-
-Return ONLY JSON:
-
-{
-  "category": "",
-  "response": ""
-}
-
-Email: "${email}"
-`;
+      Respond ONLY valid JSON:
+      {
+        "category": "",
+        "response": ""
+      }
+      `;
 
       const result = await model.generateContent(prompt);
-      const output = result.response.text();
+      const text = result.response.text();
 
-      // Extract JSON safely
-      const first = output.indexOf("{");
-      const last = output.lastIndexOf("}");
-      const json = output.substring(first, last + 1);
+      const json = JSON.parse(text);
+      const key = json.category.toLowerCase().replace(/ /g, "_") || "general_inquiry";
 
-      const parsed = JSON.parse(json);
-      const normalized = parsed.category.toLowerCase().replace(/ /g, "_");
-
-      const key = categories[normalized] ? normalized : "general_inquiry";
-
-      categories[key].push({
-        email,
-        response: parsed.response
-      });
+      if (!categories[key]) categories.general_inquiry.push(json);
+      else categories[key].push(json);
     }
 
     return res.status(200).json({ success: true, categories });
-  } catch (err) {
-    console.error("Gemini API Error:", err);
-    return res.status(500).json({ error: "Gemini server error" });
+
+  } catch (error) {
+    console.error("Gemini Error:", error);
+    return res.status(500).json({ error: "Gemini AI error" });
   }
 }

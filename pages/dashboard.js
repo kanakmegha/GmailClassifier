@@ -1,60 +1,95 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { fetchEmails } from "../utils/gmail";
+
+const categoryConfig = {
+  technical_issue: { color: "red", icon: "🐞" },
+  billing_question: { color: "yellow", icon: "💰" },
+  feature_request: { color: "blue", icon: "✨" },
+  general_inquiry: { color: "green", icon: "📩" },
+};
 
 export default function Dashboard() {
+  const { data: session } = useSession();
   const [emails, setEmails] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState("");
+  const [categories, setCategories] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [openCategory, setOpenCategory] = useState(null);
+  const [error, setError] = useState(null);
 
-  const handleGenerate = async () => {
-    if (!emails.length) {
-      alert("Please enter at least one email!");
-      return;
-    }
+  useEffect(() => {
+    if (!session?.accessToken) return;
 
-    setLoading(true);
+    const loadData = async () => {
+      try {
+        setProgress(10);
+        const fetched = await fetchEmails(session.accessToken);
+        setEmails(fetched);
+        setProgress(50);
 
-    try {
-      const res = await fetch("/api/generate-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emails }),
-      });
+        const aiRes = await fetch("/api/gemini", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ emails: fetched })
+        });
 
-      const data = await res.json();
+        if (!aiRes.ok) throw new Error(await aiRes.text());
+        const data = await aiRes.json();
+        setCategories(data.categories || {});
+        setProgress(100);
 
-      if (!res.ok) {
-        console.error("OpenAI API error:", data);
-        return alert(data.error || "API Error");
+      } catch (err) {
+        setError("Error loading dashboard: " + err.message);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      setResult(data.generatedText);
-    } catch (err) {
-      console.error("Error:", err);
-      alert("Something went wrong!");
-    }
+    loadData();
+  }, [session]);
 
-    setLoading(false);
-  };
+  if (!session) return <p className="text-center mt-20">Please login first</p>;
+
+  if (loading)
+    return (
+      <div className="flex items-center justify-center min-h-screen text-lg">
+        Loading emails... {progress}%
+      </div>
+    );
+
+  if (error)
+    return <div className="text-center text-red-600 font-bold">{error}</div>;
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Dashboard</h2>
+    <div className="p-6">
+      <h1 className="text-3xl font-bold text-center mb-5">Email Dashboard</h1>
 
-      <textarea
-        placeholder="Enter emails (comma separated)"
-        onChange={(e) => setEmails(e.target.value.split(","))}
-        style={{ width: "80%", height: "100px" }}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {Object.entries(categories).map(([cat, list]) => (
+          <div key={cat} className="border rounded-xl shadow-lg">
+            <div
+              className={`p-4 cursor-pointer bg-${categoryConfig[cat]?.color}-200`}
+              onClick={() => setOpenCategory(openCategory === cat ? null : cat)}
+            >
+              {categoryConfig[cat].icon} {cat.replace(/_/g, " ")} ({list.length})
+            </div>
 
-      <button onClick={handleGenerate} disabled={loading}>
-        {loading ? "Generating..." : "Generate"}
-      </button>
-
-      {result && (
-        <pre style={{ marginTop: "20px", background: "#eee", padding: "10px" }}>
-          {result}
-        </pre>
-      )}
+            {openCategory === cat && (
+              <ul className="p-4 space-y-3">
+                {list.map((item, i) => (
+                  <li key={i} className="border rounded p-3">
+                    <strong>{item.subject}</strong>
+                    <p className="text-sm text-gray-600 italic mt-1">
+                      AI: {item.response}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
