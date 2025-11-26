@@ -1,59 +1,30 @@
 // pages/api/gemini.js
-import { GoogleGenAI } from "@google/genai";
-
-// Initialize Gemini client with API key from environment variable
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method !== "POST") return res.status(405).end();
 
   const { emails } = req.body;
-
-  if (!emails || !Array.isArray(emails) || emails.length === 0) {
-    return res.status(400).json({ error: "No emails provided" });
-  }
+  if (!emails || !emails.length) return res.status(400).json({ error: "No emails provided" });
 
   try {
-    const results = [];
+    const apiKey = process.env.GEMINI_API_KEY; // set in Vercel
+    const response = await fetch("https://api.generative.google/v1beta/models/gemini-3-pro-preview:generateText", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        prompt: emails.join("\n\n"),
+        temperature: 0.7,
+        maxOutputTokens: 200
+      })
+    });
 
-    for (const email of emails) {
-      // Send prompt to Gemini
-      const response = await ai.models.generateContent({
-        model: "gemini-3-pro-preview",
-        contents: `
-You are an intelligent email classifier and responder.
-
-1. Categorize the email into ONE of these:
-   - Technical Issue
-   - Billing Question
-   - Feature Request
-   - General Inquiry
-
-2. Generate a friendly, helpful draft reply.
-
-3. Return ONLY valid JSON like this:
-{
-  "category": "...",
-  "response": "..."
-}
-
-Email content:
-"${email}"
-        `,
-      });
-
-      // Push parsed result
-      results.push({
-        email,
-        response: response.text,
-      });
-    }
-
-    res.status(200).json({ success: true, results });
+    if (!response.ok) throw new Error(await response.text());
+    const data = await response.json();
+    res.status(200).json({ success: true, data });
   } catch (err) {
-    console.error("Gemini API error:", err);
+    console.error("Gemini processing failed:", err);
     res.status(500).json({ error: "Gemini processing failed" });
   }
 }
