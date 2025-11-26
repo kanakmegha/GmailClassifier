@@ -49,7 +49,8 @@ export default function Dashboard() {
         setProgress(40);
 
         // SEND EMAILS TO BACKEND FOR AI CLASSIFICATION
-        const aiRes = await fetch("/api/auth/openai", {
+        const aiRes = await fetch("/api/auth/gemini", {
+
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
