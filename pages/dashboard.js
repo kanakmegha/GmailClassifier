@@ -17,8 +17,9 @@ export default function Dashboard() {
   }
 
   const handleGenerate = async () => {
-    if (!emailsInput.trim()) {
-      alert("Please enter emails first");
+    const emails = emailsInput.split(",").map((e) => e.trim()).filter(Boolean);
+    if (emails.length === 0) {
+      alert("Please enter at least one email");
       return;
     }
 
@@ -26,23 +27,18 @@ export default function Dashboard() {
     setResult(null);
 
     try {
-      const response = await fetch("/api/processEmails", {
+      const response = await fetch("/api/gemini", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          emails: emailsInput.split(",").map((e) => e.trim()),
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emails }),
       });
 
       const data = await response.json();
-      console.log("Server response:", data);
 
-      if (data.error) {
-        setResult("❌ Server error: " + data.error);
+      if (response.ok) {
+        setResult(JSON.stringify(data.categories, null, 2));
       } else {
-        setResult(JSON.stringify(data, null, 2));
+        setResult("❌ Server error: " + (data.error || "Unknown error"));
       }
     } catch (err) {
       setResult("⚠️ Something went wrong: " + err.message);
@@ -52,7 +48,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div>
+    <div style={{ padding: "20px" }}>
       <h2>Dashboard</h2>
       <p>Welcome, {session.user.email}</p>
 
@@ -60,8 +56,8 @@ export default function Dashboard() {
         placeholder="Enter emails separated by commas"
         value={emailsInput}
         onChange={(e) => setEmailsInput(e.target.value)}
-        rows={4}
-        cols={40}
+        rows={6}
+        cols={50}
       />
 
       <br /><br />
